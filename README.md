@@ -1,11 +1,5 @@
 # foundry-session-1
 
-Live chat demo for Session 1 of *Mastering Microsoft Foundry*. The page calls `/api/chat`, a Vercel function that forwards to an Azure AI Foundry deployment (OpenAI-compatible `/openai/v1/chat/completions`). The key stays server-side.
+Live chat demo for Session 1 of *Mastering Microsoft Foundry*. Live: https://foundry-session-1.vercel.app
 
-## Vercel environment variables
-- `AZURE_AI_ENDPOINT`: e.g. `https://<resource>.services.ai.azure.com`
-- `AZURE_AI_KEY`: resource key
-- `AZURE_AI_DEPLOYMENT`: deployment name, e.g. `DeepSeek-V4.1-Flash`
-- `DEMO_PASSCODE`: optional; viewers must enter it to chat
-
-Redeploy after changing them.
+Enter your Azure AI Foundry endpoint, API key and deployment name in the page. Each request goes through `/api/chat` (a Vercel function) to `https://<host>/openai/v1/chat/completions`. Nothing is stored server-side; only Azure AI hosts are allowed. "Remember on this device" keeps the values in the browser's localStorage.

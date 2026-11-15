@@ -51,12 +51,14 @@ form button:disabled{opacity:.5;cursor:wait}
 <div class="top"><span class="tag">Session 1 · Live demo</span><h1>Microsoft Foundry Chat Playground</h1><span id="status">Connecting…</span></div>
 <main class="pg">
   <aside class="setup">
-    <div><label>Deployment</label><div class="v" id="dep">…</div></div>
+    <div><label for="ep">Endpoint</label><input type="text" id="ep" placeholder="https://<resource>.services.ai.azure.com" autocomplete="off" spellcheck="false"></div>
+    <div><label for="key">API key</label><input type="password" id="key" placeholder="Resource key" autocomplete="off"></div>
+    <div><label for="dep">Deployment</label><input type="text" id="dep" placeholder="e.g. DeepSeek-V4.1-Flash" autocomplete="off" spellcheck="false"></div>
+    <label style="font-weight:400;display:flex;gap:8px;align-items:center;margin-top:-6px"><input type="checkbox" id="remember"> Remember on this device</label>
     <div><label for="sys">System prompt</label>
       <textarea id="sys">You are a helpful, concise assistant for a Microsoft Foundry training session. If you don't know something, say so.</textarea></div>
     <div><label for="temp">Temperature</label><input type="range" id="temp" min="0" max="1" step="0.1" value="0.2"><div class="row"><span>Factual</span><b id="tv">0.2</b><span>Creative</span></div></div>
     <div><label for="maxt">Max response tokens</label><input type="range" id="maxt" min="50" max="1000" step="50" value="400"><div class="row"><span>50</span><b id="mv">400</b><span>1000</span></div></div>
-    <div id="pcWrap" hidden><label for="pc">Demo passcode</label><input type="password" id="pc" autocomplete="off"></div>
   </aside>
   <section class="chat">
     <header>Chat history <button id="clear" type="button">Clear</button></header>
@@ -76,20 +78,21 @@ form button:disabled{opacity:.5;cursor:wait}
   let history=[], total=0, busy=false;
   $('temp').oninput=e=>$('tv').textContent=e.target.value;
   $('maxt').oninput=e=>$('mv').textContent=e.target.value;
-  fetch('/api/chat').then(r=>r.json()).then(c=>{
-    $('dep').textContent=c.deployment||'not configured';
-    $('status').textContent=c.configured?'Connected to Azure AI Foundry':'Not configured: set the Azure env vars in Vercel';
-    $('pcWrap').hidden=!c.passcode;
-  }).catch(()=>{$('status').textContent='API unreachable'});
+  const F=['ep','key','dep'], SK='foundry-demo-conn';
+  try{const s=JSON.parse(localStorage.getItem(SK)||'null');if(s){F.forEach(k=>$(k).value=s[k]||'');$('remember').checked=true}}catch(e){}
+  function save(){try{if($('remember').checked)localStorage.setItem(SK,JSON.stringify(Object.fromEntries(F.map(k=>[k,$(k).value.trim()]))));else localStorage.removeItem(SK)}catch(e){}}
+  function status(){const ok=F.every(k=>$(k).value.trim());$('status').textContent=ok?'Ready: '+$('dep').value.trim():'Enter endpoint, key and deployment';return ok}
+  F.forEach(k=>$(k).addEventListener('input',()=>{status();save()}));$('remember').onchange=save;status();
   function add(cls,text,meta){const e=$('empty');if(e)e.remove();const d=document.createElement('div');d.className='msg '+cls;d.textContent=text;if(meta){const s=document.createElement('small');s.textContent=meta;d.appendChild(s)}log.appendChild(d);log.scrollTop=log.scrollHeight;return d}
   async function send(text){
     text=text.trim(); if(!text||busy) return;
+    if(!status()){add('f','Enter the endpoint, API key and deployment first.');return}
     busy=true; $('go').disabled=true; q.value='';
     add('u',text); history.push({role:'user',content:text});
     const pending=add('a','…'); const t0=performance.now();
     try{
       const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-        system:$('sys').value, messages:history.slice(-10), temperature:+$('temp').value, max_tokens:+$('maxt').value, passcode:$('pc').value})});
+        system:$('sys').value, messages:history.slice(-10), temperature:+$('temp').value, max_tokens:+$('maxt').value, endpoint:$('ep').value.trim(), key:$('key').value.trim(), deployment:$('dep').value.trim()})});
       const d=await r.json(); pending.remove();
       const ms=Math.round(performance.now()-t0);
       if(d.filtered){add('f','⚠ Blocked by Azure AI content safety'+(d.categories?' ('+d.categories.join(', ')+')':'')+'.', 'Content filter · '+ms+' ms'); history.pop();}
